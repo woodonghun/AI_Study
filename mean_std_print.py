@@ -28,10 +28,12 @@ def print_stats(dataset):
     print(f'mean: {mean_r, mean_g, mean_b}')
     print(f'std: {std_r, std_g, std_b}')
 
+    return mean_r, mean_g, mean_b, std_r, std_g, std_b
+
 
 if __name__ == "__main__":
-    data_path_train = r'D:\AI_study\cnn\2catdog\cat_dog\training_set'
-    data_path_test = r'D:\AI_study\cnn\2catdog\cat_dog\test_set'
+    data_path_train = r'D:\AI_study\cnn\3. 8종 이미지 분류\train_natural_images'
+    data_path_test = r'D:\AI_study\cnn\3. 8종 이미지 분류\test_natural_images'
 
     transform = transforms.Compose([
         transforms.Resize((224, 224)),

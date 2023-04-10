@@ -20,25 +20,24 @@ from feature_map_show import FeatureMapVisualizer
 import model_network.resnet as res
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
-learning_rate = 0.00001
-batch_size = 64
+learning_rate = 0.0001
+batch_size = 32
 epoch_size = 10
 weight_decay = 5e-7
-project_name = 'rice'
+project_name = '8class'
 
-data_path_train = r'C:\woo_project\AI_Study\sample_data\sample'
-# data_path_train = r'D:\AI_study\cnn\1. 쌀 분류\rice_train'
-data_path_test = r'D:\AI_study\cnn\1. 쌀 분류\rice_test'
-model_save_path = r'D:\AI_study\cnn\1. 쌀 분류\model'
+data_path_train = r'D:\AI_study\cnn\3. 8종 이미지 분류\train_natural_images'
+data_path_test = r'D:\AI_study\cnn\3. 8종 이미지 분류\test_natural_images'
+model_save_path = r'D:\AI_study\cnn\3. 8종 이미지 분류\model'
 
-feature_map = True
+feature_map = False
 feature_map_layer_name = None  # feature map 을 저장할 layer, map index dict {'conv1': [1, 2, 3, 4, 5], 'layer1.2.con2:[1,2,3,4,5]}
 feature_map_save_epoch = 2  # feature map 을 저장할 epoch의 배수   ex) 2 이면 2, 4, 6, 8... 일때 폴더 생성
 feature_map_save_path = r'C:\woo_project\AI_Study\sample_data'  # 피쳐맵 이미지 폴더를 생성할 경로, 피쳐맵 폴더 이름은 feature_map 으로 고정
 
 
 pretrained_model = 0  # 0 일 때는 사전 학습 없음, 1일때 사전 학습 있음
-model_name = 'temp.pt'
+model_name = 'resnet18_8class_.pt'
 
 tensorboard_file_name = f"{time.strftime('%H%M%S')}_epoch={epoch_size}_lr={learning_rate}_batch_size={batch_size}"
 
@@ -83,12 +82,12 @@ print(f'{device} is available.')
 transform_train = transforms.Compose([
     transforms.Resize((224, 224)),
     transforms.ToTensor(),
-    transforms.Normalize((0.48827466, 0.4551035, 0.41741803), (0.05540232, 0.054113153, 0.055464733))
+    transforms.Normalize((0.5088954, 0.46383116, 0.41928688), (0.05792271, 0.062752955, 0.07355038))
 ])  # 데이터 정규화
 transform_test = transforms.Compose([
     transforms.Resize((224, 224)),
     transforms.ToTensor(),
-    transforms.Normalize((0.4865031, 0.4527351, 0.41355005), (0.05324953, 0.052485514, 0.054207902))
+    transforms.Normalize((0.52701133, 0.47480434, 0.42878655), (0.06052063, 0.063967526, 0.075863875))
 ])  # 데이터 정규화
 
 train_dataset = CustomDataset(data_path_train, transform_train)
@@ -124,6 +123,7 @@ class Trainer:
 
         self.criterion = nn.CrossEntropyLoss()
         self.optimizer = optim.Adam(self.model.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay)
+        self.scheduler = optim.lr_scheduler.MultiStepLR(self.optimizer, milestones=[5, 8], gamma=0.5)
 
         if self.pretrained_model:
             checkpoint = torch.load(fr'{self.model_save_path}\{self.model_name}')
@@ -196,6 +196,9 @@ class Trainer:
 
             loss_save = valid_loss / len(self.validloader)  # 모델 저장
             self.loss_.append(loss_save)
+
+            self.scheduler.step()
+
             # loss 값이 작아질 때 마다 저장
             # if loss_save < self.ls:
             torch.save({'epoch': epoch,
@@ -253,6 +256,7 @@ if __name__ == "__main__":
     # model = models.resnet18(pretrained=True).to(device)
     # model = models.vgg11(pretrained=True).to('cpu')
 
+    # model = res.resnet18().to(device)
     model = res.resnet18().to('cpu')
     print(model)
     # train
