@@ -1,5 +1,5 @@
 import torch.nn as nn
-import torchsummary
+from torchsummary import summary
 
 from torchvision import models
 
@@ -144,5 +144,5 @@ def resnet152():
 if __name__ == '__main__':
     model = models.resnet18(pretrained=True).cuda()
 
-    torchsummary.summary(resnet18().cuda(), input_size=(3, 224, 224))
-    torchsummary.summary(model, input_size=(3, 224, 224))
+    summary(resnet18().cuda(), input_size=(3, 224, 224))
+    summary(model, input_size=(3, 224, 224))

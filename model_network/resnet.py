@@ -3,6 +3,8 @@ import torchsummary
 
 from torchvision import models
 
+import resnet
+
 
 class BasicBlock(nn.Module):    # residual block 의 기본 구조
     expansion = 1
@@ -142,7 +144,7 @@ def resnet152():
     return ResNet(BottleNeck, [3, 8, 36, 3])
 
 if __name__ == '__main__':
-    model = models.resnet18(pretrained=True).cuda()
+    # model = models.resnet18(pretrained=True).cuda()
 
-    torchsummary.summary(resnet18().cuda(), input_size=(3, 224, 224))
+    torchsummary.summary(resnet50(), input_size=(3, 224, 224))
     # torchsummary.summary(model, input_size=(3, 224, 224))

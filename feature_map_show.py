@@ -130,11 +130,12 @@ class FeatureMapVisualizer:
                     ax.imshow(maps[0, j, :, :].cpu().numpy(), cmap='gray')  # ?? cmap='gray' 지우면 색상 나옴
                     ax.axis('off')  # grid 제거
                     ax.set_title(f"Map {j}", fontsize=7)  # subplot name
-                print(input_name)
-                if len(input_name) != 1:  # batch size 가 1 이상일때 아닐때 title 명 조정
-                    fig.suptitle(f'{name}\n{input_name[0]}')
-                else:
-                    fig.suptitle(f'{name}\n{input_name[-1]}')
+
+                # print(input_name)
+                # if len(input_name) != 1:  # batch size 가 1 이상일때 아닐때 title 명 조정
+                #     fig.suptitle(f'{name}\n{input_name[0]}')
+                # else:
+                #     fig.suptitle(f'{name}\n{input_name[-1]}')
 
                 plt.savefig(f'{self.path}/{epoch + 1}/{name}.png')
 

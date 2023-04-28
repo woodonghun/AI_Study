@@ -1,8 +1,10 @@
 from torch import nn  # torch 내의 세부적인 기능을 불러온다. (신경망 기술, 손실함수, 최적화 방법 등)
 import torch.nn as F  # torch 내의 세부적인 기능을 불러온다. (신경망 기술 등)
+import torchsummary
 
+from torchvision import models
 
-class VGGNet16(nn.Module):  # 모델
+class VGGNet11(nn.Module):  # 모델
     def __init__(self):
         super().__init__()  # 모델 연산 정의
         # input = 224x224
@@ -77,3 +79,8 @@ class VGGNet16(nn.Module):  # 모델
         x = self.fc3(x)
 
         return x
+if __name__ == '__main__':
+    model = models.vgg11(pretrained=True).cuda()
+
+    torchsummary.summary(model.cuda(), input_size=(3, 224, 224))
+    # torchsummary.summary(model, input_size=(3, 224, 224))
