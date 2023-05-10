@@ -25,7 +25,7 @@ def get_args():
     parser.add_argument('--dataset', default='coco', help='dataset')
     parser.add_argument('--device', default='cuda', help='device')
     parser.add_argument('--b', '--batch_size', default=2, type=int)
-    parser.add_argument('--epochs', default=20, type=int, metavar='N',
+    parser.add_argument('--epochs', default=100, type=int, metavar='N',
                         help='number of total epochs to run')
     parser.add_argument('-j', '--workers', default=8, type=int, metavar='N',
                         help='number of data loading workers (default: 16)')
@@ -35,11 +35,11 @@ def get_args():
     parser.add_argument('--wd', '--weight-decay', default=1e-4, type=float,
                         metavar='W', help='weight decay (default: 1e-4)',
                         dest='weight_decay')
-    parser.add_argument('--print-freq', default=20, type=int, help='print frequency')
+    parser.add_argument('--print-freq', default=1000, type=int, help='print frequency')
     parser.add_argument('--lr-step-size', default=8, type=int, help='decrease lr every step-size epochs')
     parser.add_argument('--lr-steps', default=[8, 11], nargs='+', type=int, help='decrease lr every step-size epochs')
     parser.add_argument('--lr-gamma', default=0.1, type=float, help='decrease lr by a factor of lr-gamma')
-    parser.add_argument('--resume', default='', help='resume from checkpoint')
+    parser.add_argument('--resume', default='./result/model_6.pth', help='resume from checkpoint')
     parser.add_argument('--test_only', default=False, type=bool, help='resume from checkpoint')
     parser.add_argument('--output-dir', default='./result', help='path where to save')
     parser.add_argument('--aspect-ratio-group-factor', default=0, type=int)
