@@ -6,6 +6,7 @@ from torchvision.datasets import CocoDetection
 from torch.utils.data.dataloader import default_collate
 import os
 
+
 def collate_fn(batch):
     items = list(zip(*batch))
     items[0] = default_collate([i for i in items[0] if torch.is_tensor(i)])
@@ -43,6 +44,7 @@ class CocoDataset(CocoDetection):
         width, height = image.size
         boxes = []
         labels = []
+
         if len(target) == 0:
             return None, None, None, None, None
         for annotation in target:
@@ -54,3 +56,9 @@ class CocoDataset(CocoDetection):
         if self.transform is not None:
             image, (height, width), boxes, labels = self.transform(image, (height, width), boxes, labels)
         return image, target[0]["image_id"], (height, width), boxes, labels
+
+    def print_get_item(self, target):
+        print(target)
+
+if __name__ == '__main__':
+    sample = CocoDataset

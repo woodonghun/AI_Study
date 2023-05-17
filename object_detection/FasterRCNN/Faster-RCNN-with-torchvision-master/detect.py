@@ -4,49 +4,54 @@ import argparse
 import cv2
 import numpy as np
 import sys
+
 sys.path.append('./')
 import coco_names
 import random
 
+
 def get_args():
     parser = argparse.ArgumentParser(description='Pytorch Faster-rcnn Detection')
 
-    parser.add_argument('--model_path', type=str, default='./result/model_12.pth', help='model path')
-    parser.add_argument('--image_path', type=str, default='./imgs/11.jpg', help='image path')
+    parser.add_argument('--model_path', type=str, default='./result/model_p.pth', help='model path')
+    parser.add_argument('--image_path', type=str, default='./imgs/111.jpg', help='image path')
     parser.add_argument('--model', default='fasterrcnn_resnet50_fpn', help='model')
     parser.add_argument('--dataset', default='coco', help='model')
-    parser.add_argument('--score', type=float, default=0.9, help='objectness score threshold')
+    parser.add_argument('--score', type=float, default=0.5, help='objectness score threshold')
     args = parser.parse_args()
 
     return args
 
-def random_color():
-    b = random.randint(0,255)
-    g = random.randint(0,255)
-    r = random.randint(0,255)
 
-    return (b,g,r)
+def random_color():
+    b = random.randint(0, 255)
+    g = random.randint(0, 255)
+    r = random.randint(0, 255)
+
+    return (b, g, r)
+
 
 def main():
     args = get_args()
     input = []
     if args.dataset == 'coco':
-        num_classes = 11
+        num_classes = 91
         names = coco_names.names
-        
+
     # Model creating
     print("Creating model")
+
     model = torchvision.models.detection.__dict__[args.model](num_classes=num_classes, pretrained=False)
     model = model.cuda()
-
+    print(model)
     model.eval()
 
     save = torch.load(args.model_path)
     model.load_state_dict(save['model'])
 
     src_img = cv2.imread(args.image_path)
-    img = cv2.cvtColor(src_img,cv2.COLOR_BGR2RGB)
-    img_tensor = torch.from_numpy(img/255.).permute(2,0,1).float().cuda()
+    img = cv2.cvtColor(src_img, cv2.COLOR_BGR2RGB)
+    img_tensor = torch.from_numpy(img / 255.).permute(2, 0, 1).float().cuda()
     input.append(img_tensor)
     out = model(input)
     boxes = out[0]['boxes']
@@ -60,16 +65,16 @@ def main():
             # cv2.rectangle(img,(x1,y1),(x2,y2),colors[labels[idx].item()],thickness=2)
             print(src_img.shape, x1, y1, x2, y2)
             print(name)
-            cv2.rectangle(src_img,(x1,y1),(x2,y2),random_color(),thickness=2)
-            cv2.putText(src_img, text=name, org=(x1, y1+10), fontFace=cv2.FONT_HERSHEY_SIMPLEX, 
-                fontScale=0.5, thickness=1, lineType=cv2.LINE_AA, color=(0, 0, 255))
+            cv2.rectangle(src_img, (x1, y1), (x2, y2), random_color(), thickness=2)
+            cv2.putText(src_img, text=name + str(round(float(scores[idx]), 4)), org=(x1, y1 + 10), fontFace=cv2.FONT_HERSHEY_SIMPLEX,
+                        fontScale=0.5, thickness=1, lineType=cv2.LINE_AA, color=(0, 0, 255))
 
-    cv2.imshow('result',src_img)   
+    cv2.imshow('result', src_img)
     cv2.waitKey()
     cv2.destroyAllWindows()
 
     # cv2.imwrite('assets/11.jpg',img)
-    
+
 
 if __name__ == "__main__":
     main()

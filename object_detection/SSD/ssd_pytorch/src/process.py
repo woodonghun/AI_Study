@@ -5,14 +5,13 @@ import numpy as np
 from tqdm.autonotebook import tqdm
 import torch
 from pycocotools.cocoeval import COCOeval
-from apex import amp
+# from apex import amp
 
 
 def train(model, train_loader, epoch, writer, criterion, optimizer, scheduler, is_amp):
     model.train()
     num_iter_per_epoch = len(train_loader)
     progress_bar = tqdm(train_loader)
-    scheduler.step()
     for i, (img, _, _, gloc, glabel) in enumerate(progress_bar):
         if torch.cuda.is_available():
             img = img.cuda()
@@ -24,17 +23,19 @@ def train(model, train_loader, epoch, writer, criterion, optimizer, scheduler, i
         gloc = gloc.transpose(1, 2).contiguous()
         loss = criterion(ploc, plabel, gloc, glabel)
 
+
         progress_bar.set_description("Epoch: {}. Loss: {:.5f}".format(epoch + 1, loss.item()))
 
         writer.add_scalar("Train/Loss", loss.item(), epoch * num_iter_per_epoch + i)
 
-        if is_amp:
-            with amp.scale_loss(loss, optimizer) as scale_loss:
-                scale_loss.backward()
-        else:
-            loss.backward()
+        # if is_amp:
+        #     with amp.scale_loss(loss, optimizer) as scale_loss:
+        #         scale_loss.backward()
+        # else:
+        loss.backward()
         optimizer.step()
         optimizer.zero_grad()
+    scheduler.step()
 
 
 def evaluate(model, test_loader, epoch, writer, encoder, nms_threshold):
@@ -54,7 +55,7 @@ def evaluate(model, test_loader, epoch, writer, encoder, nms_threshold):
                 ploc_i = ploc[idx, :, :].unsqueeze(0)
                 plabel_i = plabel[idx, :, :].unsqueeze(0)
                 try:
-                    result = encoder.decode_batch(ploc_i, plabel_i, nms_threshold, 200)[0]
+                    result = encoder.decode_batch(ploc_i, plabel_i, nms_threshold, 200)[0]  # mns threshold
                 except:
                     print("No object detected in idx: {}".format(idx))
                     continue
@@ -69,6 +70,7 @@ def evaluate(model, test_loader, epoch, writer, encoder, nms_threshold):
     detections = np.array(detections, dtype=np.float32)
 
     coco_eval = COCOeval(test_loader.dataset.coco, test_loader.dataset.coco.loadRes(detections), iouType="bbox")
+    coco_eval.params.imgIds = [1]
     coco_eval.evaluate()
     coco_eval.accumulate()
     coco_eval.summarize()

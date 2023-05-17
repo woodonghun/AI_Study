@@ -8,8 +8,7 @@ import torch
 import torchvision.transforms as transforms
 from torchvision.ops.boxes import box_iou
 
-from src.utils import Encoder
-
+from object_detection.SSD.
 
 class SSDCropping(object):
     def __init__(self):

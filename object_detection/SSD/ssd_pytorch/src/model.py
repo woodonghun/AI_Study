@@ -4,7 +4,7 @@
 import torch
 import torch.nn as nn
 from torchvision.models.resnet import resnet50
-from torchvision.models.mobilenet import mobilenet_v2, InvertedResidual
+from torchvision.models.mobilenet import mobilenet_v2#InvertedResidual
 
 class Base(nn.Module):
     def __init__(self):
@@ -57,7 +57,7 @@ class SSD(Base):
 
         for nd, oc in zip(self.num_defaults, self.feature_extractor.out_channels):
             self.loc.append(nn.Conv2d(oc, nd * 4, kernel_size=3, padding=1))
-            self.conf.append(nn.Conv2d(oc, nd * self.num_classes, kernel_size=3, padding=1))
+            self.conf.append(nn.Conv2d(oc, nd * self.num_classes, kernel_size=3, padding=1))    # default box 개수
 
         self.loc = nn.ModuleList(self.loc)
         self.conf = nn.ModuleList(self.conf)
@@ -139,29 +139,29 @@ def StackedSeperableConv2d(ls_channels, multiplier):
     return nn.ModuleList(layers)
 
 
-class SSDLite(Base):
-    def __init__(self, backbone=MobileNetV2(), num_classes=81, width_mul=1.0):
-        super(SSDLite, self).__init__()
-        self.feature_extractor = backbone
-        self.num_classes = num_classes
-
-        self.additional_blocks = nn.ModuleList([
-            InvertedResidual(1280, 512, stride=2, expand_ratio=0.2),
-            InvertedResidual(512, 256, stride=2, expand_ratio=0.25),
-            InvertedResidual(256, 256, stride=2, expand_ratio=0.5),
-            InvertedResidual(256, 64, stride=2, expand_ratio=0.25)
-        ])
-        header_channels = [round(576 * width_mul), 1280, 512, 256, 256, 64]
-        self.loc = StackedSeperableConv2d(header_channels, 4)
-        self.conf = StackedSeperableConv2d(header_channels, self.num_classes)
-        self.init_weights()
-
-
-    def forward(self, x):
-        y, x = self.feature_extractor(x)
-        detection_feed = [y, x]
-        for l in self.additional_blocks:
-            x = l(x)
-            detection_feed.append(x)
-        locs, confs = self.bbox_view(detection_feed, self.loc, self.conf)
-        return locs, confs
+# class SSDLite(Base):
+#     def __init__(self, backbone=MobileNetV2(), num_classes=81, width_mul=1.0):
+#         super(SSDLite, self).__init__()
+#         self.feature_extractor = backbone
+#         self.num_classes = num_classes
+#
+#         self.additional_blocks = nn.ModuleList([
+#             InvertedResidual(1280, 512, stride=2, expand_ratio=0.2),
+#             InvertedResidual(512, 256, stride=2, expand_ratio=0.25),
+#             InvertedResidual(256, 256, stride=2, expand_ratio=0.5),
+#             InvertedResidual(256, 64, stride=2, expand_ratio=0.25)
+#         ])
+#         header_channels = [round(576 * width_mul), 1280, 512, 256, 256, 64]
+#         self.loc = StackedSeperableConv2d(header_channels, 4)
+#         self.conf = StackedSeperableConv2d(header_channels, self.num_classes)
+#         self.init_weights()
+#
+#
+#     def forward(self, x):
+#         y, x = self.feature_extractor(x)
+#         detection_feed = [y, x]
+#         for l in self.additional_blocks:
+#             x = l(x)
+#             detection_feed.append(x)
+#         locs, confs = self.bbox_view(detection_feed, self.loc, self.conf)
+#         return locs, confs

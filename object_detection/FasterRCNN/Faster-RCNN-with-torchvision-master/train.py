@@ -20,7 +20,7 @@ import random
 def get_args():
     parser = argparse.ArgumentParser(description='Pytorch Faster-rcnn Training')
 
-    parser.add_argument('--data_path', default=r'D:\AI_study\object detection\coco\resize_data_coco/', help='dataset path')
+    parser.add_argument('--data_path', default=r'C:\woo_project\AI_Study\object_detection\data_\coco_/', help='dataset path')
     parser.add_argument('--model', default='fasterrcnn_resnet50_fpn', help='model')
     parser.add_argument('--dataset', default='coco', help='dataset')
     parser.add_argument('--device', default='cuda', help='device')
@@ -39,8 +39,8 @@ def get_args():
     parser.add_argument('--lr-step-size', default=8, type=int, help='decrease lr every step-size epochs')
     parser.add_argument('--lr-steps', default=[8, 11], nargs='+', type=int, help='decrease lr every step-size epochs')
     parser.add_argument('--lr-gamma', default=0.1, type=float, help='decrease lr by a factor of lr-gamma')
-    parser.add_argument('--resume', default='./result/model_6.pth', help='resume from checkpoint')
-    parser.add_argument('--test_only', default=False, type=bool, help='resume from checkpoint')
+    parser.add_argument('--resume', default='./result/model_P.pth', help='resume from checkpoint')
+    parser.add_argument('--test_only', default=True, type=bool, help='resume from checkpoint')
     parser.add_argument('--output-dir', default='./result', help='path where to save')
     parser.add_argument('--aspect-ratio-group-factor', default=0, type=int)
     parser.add_argument(
@@ -63,7 +63,7 @@ def get_args():
 
 def get_dataset(name, image_set, transform):
     paths = {
-        "coco": (r'D:\AI_study\object detection\coco\resize_data_coco/', get_coco, 11),
+        "coco": (r'C:\woo_project\AI_Study\object_detection\data_\coco_/', get_coco, 91),
         "coco_kp": ('/datasets01/COCO/022719/', get_coco_kp, 2)
     }
     p, ds_fn, num_classes = paths[name]

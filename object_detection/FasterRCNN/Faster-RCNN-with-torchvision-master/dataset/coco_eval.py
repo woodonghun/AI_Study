@@ -45,6 +45,8 @@ class CocoEvaluator(object):
 
             self.eval_imgs[iou_type].append(eval_imgs)
 
+
+
     def synchronize_between_processes(self):
         for iou_type in self.iou_types:
             self.eval_imgs[iou_type] = np.concatenate(self.eval_imgs[iou_type], 2)
@@ -54,10 +56,13 @@ class CocoEvaluator(object):
         for coco_eval in self.coco_eval.values():
             coco_eval.accumulate()
 
-    def summarize(self):
+    def summarize(self, id_num: list):
         for iou_type, coco_eval in self.coco_eval.items():
             print("IoU metric: {}".format(iou_type))
             coco_eval.summarize()
+            if id_num:
+                for i in id_num:
+                    coco_eval.summarize_extended(i)
 
     def prepare(self, predictions, iou_type):
         if iou_type == "bbox":
