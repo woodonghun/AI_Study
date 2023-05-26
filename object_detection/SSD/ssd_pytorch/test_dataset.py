@@ -11,7 +11,7 @@ from src.transform import SSDTransformer
 import cv2
 import shutil
 
-from src.utils import generate_dboxes, Encoder, colors
+from src.utils_ob import generate_dboxes, Encoder, colors
 from src.model import SSD, ResNet
 
 

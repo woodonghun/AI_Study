@@ -11,16 +11,17 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
 from src.model import SSD, ResNet, MobileNetV2#, SSDLite
-from src.utils import generate_dboxes, Encoder, coco_classes
+from src.utils_ob import generate_dboxes, Encoder, coco_classes
 from src.transform import SSDTransformer
 from src.loss import Loss
 from src.process import train, evaluate
 from src.dataset import collate_fn, CocoDataset
 
+import feature_map_show
 
 def get_args():
     parser = ArgumentParser(description="Implementation of SSD")
-    parser.add_argument("--data-path", type=str, default="C:\woo_project\AI_Study\object_detection\data_\coco_",
+    parser.add_argument("--data-path", type=str, default="C:\woo_project\AI_Study\object_detection\data_\coco",
                         help="the root folder of dataset")
     parser.add_argument("--save-folder", type=str, default="trained_models",
                         help="path to folder containing model checkpoint file")
@@ -28,7 +29,7 @@ def get_args():
 
     parser.add_argument("--model", type=str, default="ssd", choices=["ssd", "ssdlite"],
                         help="ssd-resnet50 or ssdlite-mobilenetv2")
-    parser.add_argument("--epochs", type=int, default=65, help="number of total epochs to run")
+    parser.add_argument("--epochs", type=int, default=10000, help="number of total epochs to run")
     parser.add_argument("--batch-size", type=int, default=8, help="number of samples for each iteration")
     parser.add_argument("--multistep", nargs="*", type=int, default=[43, 54],
                         help="epochs at which to decay learning rate")
@@ -127,6 +128,8 @@ def main(opt):
 
     print(model)
     for epoch in range(first_epoch, opt.epochs):
+
+
 
         train(model, train_loader, epoch, writer, criterion, optimizer, scheduler, opt.amp)
         evaluate(model, test_loader, epoch, writer, encoder, opt.nms_threshold)

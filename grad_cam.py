@@ -13,6 +13,8 @@ from glob import glob
 import numpy as np
 from torchvision.models import resnet18
 
+data_save_path = r''
+
 
 class GradCam(nn.Module):
     cam = []
@@ -93,20 +95,23 @@ def make_plt_cam(cam, image, epoch):
     #     fig.suptitle(f'{name}\n{input_name[0]}')
     # else:
     #     fig.suptitle(f'{name}\n{input_name[-1]}')
-    plt.savefig(fr'C:\Users\3DONS\Desktop\새 폴더/grad_cam_{epoch}.png')
+    plt.savefig(fr'{data_save_path}/grad_cam_{epoch}.png')
 
     # plt.show()  # plt.save 랑 같이 사용 불가능 / show 사용시 모든 os.mkdir 제거하고 하면 편함 ( 안해도 됨 )
 
 
-def insert_input_module_layer(model, train_dataset, epoch, module_layer: list):
+def insert_input_module_layer(model,  epoch, module_layer: list, dataset=None,image=None,):
     GradCam.cam = []
     # data, label, label_list = train_dataset[0]['image'], train_dataset[0]['label_name'], train_dataset[0]['label_list']  # 이미지 한 장과 라벨 불러오기
     # print(train_dataset[0]['filename'])
+    if dataset:
+        data, label = dataset[0][0], dataset[1]  # 이미지 한 장과 라벨 불러오기
+        print(data)
+        data.unsqueeze_(0)  # 4차원 3차원 [피쳐수 ,너비, 높이] -> [1,피쳐수 ,너비, 높이]  ???
+        original_img = (data[0][0].cpu().numpy())
 
-    data, label = train_dataset[0], train_dataset[1]  # 이미지 한 장과 라벨 불러오기
-
-    data.unsqueeze_(0)  # 4차원 3차원 [피쳐수 ,너비, 높이] -> [1,피쳐수 ,너비, 높이]  ???
-    original_img = (data[0][0].cpu().numpy())
+    if image:
+        original_img = image
 
     for i, k in enumerate(module_layer):
         grad_cam = GradCam(model=model, module=k)
@@ -148,7 +153,7 @@ class CustomDataset(torch.utils.data.Dataset):
 
 if __name__ == '__main__':
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    data_path_train = r'D:\AI_study\cnn\2catdog\cat_dog\111'
+    data_path_train = r'D:\AI_study\cnn\2catdog\cat_dog\test_set'
     transform_train = transforms.Compose([
         transforms.Resize((224, 224)),
         transforms.ToTensor(),
@@ -162,6 +167,8 @@ if __name__ == '__main__':
 
     model.eval()
 
+    print(model)
+
     data, label, label_list = train_dataset[0]['image'], train_dataset[0]['label_name'], train_dataset[0]['label_list']  # 이미지 한 장과 라벨 불러오기
 
     data.unsqueeze_(0)  # 4차원 3차원 [피쳐수 ,너비, 높이] -> [1,피쳐수 ,너비, 높이]  ???
@@ -169,4 +176,4 @@ if __name__ == '__main__':
 
     # original_img = np.transpose(original_img, (1, 2, 0))
 
-    insert_input_module_layer(model, train_dataset, 0, ['layer1.0.conv1', 'layer1.0.conv2', 'layer2.0.conv1', 'layer1.0.conv2'])
+    insert_input_module_layer(model, 0, ['layer1.0.conv1', 'layer1.0.conv2', 'layer2.0.conv1', 'layer1.0.conv2'], train_dataset, image=None)

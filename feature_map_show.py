@@ -86,7 +86,7 @@ class FeatureMapVisualizer:
                     if isinstance(layer, nn.Conv2d):  # layer 와 conv2 에 해당되는 것만 가지고옴
                         save_name.append(name)  # layer 이름 저장
                 for name, layer in self.model.named_modules():
-                    if isinstance(layer, nn.Conv2d) and name == save_name[0] or name == save_name[-1] or name == save_name[len(save_name)//2]:  # 저장한 layer 중 첫번 째 마지막 layer 만 hook
+                    if isinstance(layer, nn.Conv2d): #and name == save_name[0] or name == save_name[-1] or name == save_name[len(save_name)//2]:  # 저장한 layer 중 첫번 째 마지막 layer 만 hook
                         layer.register_forward_hook(self._get_feature_maps_hook(name))
 
             else:
@@ -130,6 +130,7 @@ class FeatureMapVisualizer:
                     ax.imshow(maps[0, j, :, :].cpu().numpy(), cmap='gray')  # ?? cmap='gray' 지우면 색상 나옴
                     ax.axis('off')  # grid 제거
                     ax.set_title(f"Map {j}", fontsize=7)  # subplot name
+                fig.suptitle(f'{name}')
 
                 # print(input_name)
                 # if len(input_name) != 1:  # batch size 가 1 이상일때 아닐때 title 명 조정
@@ -138,6 +139,7 @@ class FeatureMapVisualizer:
                 #     fig.suptitle(f'{name}\n{input_name[-1]}')
 
                 plt.savefig(f'{self.path}/{epoch + 1}/{name}.png')
+                plt.close()
 
                 # plt.show()    # plt.save 랑 같이 사용 불가능 / show 사용시 모든 os.mkdir 제거하고 하면 편함 ( 안해도 됨 )
 
