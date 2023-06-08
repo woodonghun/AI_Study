@@ -128,8 +128,10 @@ def main(opt):
 
     print(model)
     for epoch in range(first_epoch, opt.epochs):
+        feature_map_save_path = 'rC:\새 폴더'
 
-
+        visualizer = feature_map_show.FeatureMapVisualizer(model, feature_map_save_path, 1, use=True)   # feature map 생성 선언
+        visualizer.create_feature_map_epoch_folder(epoch)  # feature map 폴더 안 epoch 폴더 생성
 
         train(model, train_loader, epoch, writer, criterion, optimizer, scheduler, opt.amp)
         evaluate(model, test_loader, epoch, writer, encoder, opt.nms_threshold)

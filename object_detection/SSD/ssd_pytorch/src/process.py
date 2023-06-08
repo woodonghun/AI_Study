@@ -13,9 +13,7 @@ import feature_map_show
 
 def train(model, train_loader, epoch, writer, criterion, optimizer, scheduler, is_amp):
     model.train()
-    feature_map_save_path = r'C:\새 폴더'
-    visualizer = feature_map_show.FeatureMapVisualizer(model, feature_map_save_path, 1, use=True)  # feature map 생성 선언
-    visualizer.create_feature_map_epoch_folder(epoch)  # feature map 폴더 안 epoch 폴더 생성
+
     num_iter_per_epoch = len(train_loader)
     progress_bar = tqdm(train_loader)
     for i, (img, _, _, gloc, glabel) in enumerate(progress_bar):
@@ -23,8 +21,7 @@ def train(model, train_loader, epoch, writer, criterion, optimizer, scheduler, i
             img = img.cuda()
             gloc = gloc.cuda()
             glabel = glabel.cuda()
-        if i == 1:  # 첫번째 trainlodar 에서만 입력
-            visualizer.visualize(epoch=epoch, image=img, input_name=None, layer_name_feature_maps_number=None)  # feature_map - epoch 폴더 안에 생성
+
         ploc, plabel = model(img)
         ploc, plabel = ploc.float(), plabel.float()
         gloc = gloc.transpose(1, 2).contiguous()

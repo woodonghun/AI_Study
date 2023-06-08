@@ -9,6 +9,18 @@ import random
 import numpy as np
 import cv2
 
+"""
+    yolo format 으로 된 txt 를 하나의 txt 로 통합하여 저장 한 뒤
+    통합된 txt 를 읽어 yolo format 을 pascal voc format 으로 변경하여 list 에 저장하여 dataset을 저장
+    
+    기존 format 은 pascal voc 포맷을 그대로 사용해서 변경하지 않았다.
+    
+    pascal voc format : [x_min, y_min, x_max, y_max]
+    yolo format : [x_center, y_center, width, height]
+    
+    https://christianbernecker.medium.com/convert-bounding-boxes-from-coco-to-pascal-voc-to-yolo-and-back-660dc6178742
+"""
+
 class VOCDataset(Dataset):
 
     def __init__(self, is_train, image_dir, label_txt, image_size=448, grid_size=7, num_bboxes=2, num_classes=20):
@@ -49,13 +61,27 @@ class VOCDataset(Dataset):
             num_boxes = (len(splitted) - 1) // 5
             box, label = [], []
             for i in range(num_boxes):
-                x1 = float(splitted[5*i + 1])
-                y1 = float(splitted[5*i + 2])
-                x2 = float(splitted[5*i + 3])
-                y2 = float(splitted[5*i + 4])
-                c  =   int(splitted[5*i + 5])
+                img = cv2.imread(image_dir+'/'+splitted[0])
+                height, width, _ = img.shape
+
+                # 기존코드 pascal 형식
+                # x1 = float(splitted[5 * i + 2])
+                # y1 = float(splitted[5 * i + 3])
+                # x2 = float(splitted[5 * i + 4])
+                # y2 = float(splitted[5 * i + 5])
+                # c = int(splitted[5 * i + 1])
+
+                # 변경코드 yolo 형식 to pascal
+                w = float(splitted[5 * i + 4])*width
+                h = float(splitted[5 * i + 5])*height
+                x1 = (2*float(splitted[5 * i + 2])*width-w)/2
+                y1 = (2*float(splitted[5 * i + 3])*height-h)/2
+                x2 = x1+w
+                y2 = y1+h
+                c = int(splitted[5 * i + 1])
                 box.append([x1, y1, x2, y2])
                 label.append(c)
+
             self.boxes.append(torch.Tensor(box))
             self.labels.append(torch.LongTensor(label))
 
@@ -64,8 +90,8 @@ class VOCDataset(Dataset):
     def __getitem__(self, idx):
         path = self.paths[idx]
         img = cv2.imread(path)
-        boxes = self.boxes[idx].clone() # [n, 4]
-        labels = self.labels[idx].clone() # [n,]
+        boxes = self.boxes[idx].clone()  # [n, 4]
+        labels = self.labels[idx].clone()  # [n,]
 
         if self.is_train:
             img, boxes = self.random_flip(img, boxes)
@@ -86,19 +112,20 @@ class VOCDataset(Dataset):
         box_show = boxes.numpy().reshape(-1)
         n = len(box_show) // 4
         for b in range(n):
-            pt1 = (int(box_show[4*b + 0]), int(box_show[4*b + 1]))
-            pt2 = (int(box_show[4*b + 2]), int(box_show[4*b + 3]))
-            cv2.rectangle(img_show, pt1=pt1, pt2=pt2, color=(0,255,0), thickness=1)
+
+            pt1 = (int(box_show[4 * b + 0]), int(box_show[4 * b + 1]))
+            pt2 = (int(box_show[4 * b + 2]), int(box_show[4 * b + 3]))
+            cv2.rectangle(img_show, pt1=pt1, pt2=pt2, color=(0, 255, 0), thickness=1)
         cv2.imwrite(os.path.join(debug_dir, 'test_{}.jpg'.format(idx)), img_show)
 
         h, w, _ = img.shape
-        boxes /= torch.Tensor([[w, h, w, h]]).expand_as(boxes) # normalize (x1, y1, x2, y2) w.r.t. image width/height.
-        target = self.encode(boxes, labels) # [S, S, 5 x B + C]
-
-        img = cv2.resize(img, dsize=(self.image_size, self.image_size), interpolation=cv2.INTER_LINEAR)
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB) # assuming the model is pretrained with RGB images.
-        img = (img - self.mean) / 255.0 # normalize from -1.0 to 1.0.
-        img = self.to_tensor(img)
+        boxes /= torch.Tensor([[w, h, w, h]]).expand_as(boxes)  # normalize (x1, y1, x2, y2) w.r.t. image width/height.
+        target = self.encode(boxes, labels)  # [S, S, 5 x B + C]
+        #
+        # img = cv2.resize(img, dsize=(self.image_size, self.image_size), interpolation=cv2.INTER_LINEAR)
+        # img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)  # assuming the model is pretrained with RGB images.
+        # img = (img - self.mean) / 255.0  # normalize from -1.0 to 1.0.
+        # img = self.to_tensor(img)
 
         return img, target
 
@@ -119,24 +146,23 @@ class VOCDataset(Dataset):
 
         target = torch.zeros(S, S, N)
         cell_size = 1.0 / float(S)
-        boxes_wh = boxes[:, 2:] - boxes[:, :2] # width and height for each box, [n, 2]
-        boxes_xy = (boxes[:, 2:] + boxes[:, :2]) / 2.0 # center x & y for each box, [n, 2]
+        boxes_wh = boxes[:, 2:] - boxes[:, :2]  # width and height for each box, [n, 2]
+        boxes_xy = (boxes[:, 2:] + boxes[:, :2]) / 2.0  # center x & y for each box, [n, 2]
         for b in range(boxes.size(0)):
             xy, wh, label = boxes_xy[b], boxes_wh[b], int(labels[b])
-
             ij = (xy / cell_size).ceil() - 1.0
-            i, j = int(ij[0]), int(ij[1]) # y & x index which represents its location on the grid.
-            x0y0 = ij * cell_size # x & y of the cell left-top corner.
-            xy_normalized = (xy - x0y0) / cell_size # x & y of the box on the cell, normalized from 0.0 to 1.0.
+            i, j = int(ij[0]), int(ij[1])  # y & x index which represents its location on the grid.
+            x0y0 = ij * cell_size  # x & y of the cell left-top corner.
+            xy_normalized = (xy - x0y0) / cell_size  # x & y of the box on the cell, normalized from 0.0 to 1.0.
 
             # TBM, remove redundant dimensions from target tensor.
             # To remove these, loss implementation also has to be modified.
             for k in range(B):
                 s = 5 * k
                 target[j, i, s  :s+2] = xy_normalized
-                target[j, i, s+2:s+4] = wh
-                target[j, i, s+4    ] = 1.0
-            target[j, i, 5*B + label] = 1.0
+                target[j, i, s + 2:s + 4] = wh
+                target[j, i, s + 4] = 1.0
+            target[j, i, 5 * B + label] = 1.0
 
         return target
 
@@ -229,28 +255,28 @@ class VOCDataset(Dataset):
         mean_bgr = self.mean[::-1]
         img_out[:, :] = mean_bgr
 
-        dx = random.uniform(-w*0.2, w*0.2)
-        dy = random.uniform(-h*0.2, h*0.2)
+        dx = random.uniform(-w * 0.2, w * 0.2)
+        dy = random.uniform(-h * 0.2, h * 0.2)
         dx, dy = int(dx), int(dy)
 
         if dx >= 0 and dy >= 0:
-            img_out[dy:, dx:] = img[:h-dy, :w-dx]
+            img_out[dy:, dx:] = img[:h - dy, :w - dx]
         elif dx >= 0 and dy < 0:
-            img_out[:h+dy, dx:] = img[-dy:, :w-dx]
+            img_out[:h + dy, dx:] = img[-dy:, :w - dx]
         elif dx < 0 and dy >= 0:
-            img_out[dy:, :w+dx] = img[:h-dy, -dx:]
+            img_out[dy:, :w + dx] = img[:h - dy, -dx:]
         elif dx < 0 and dy < 0:
-            img_out[:h+dy, :w+dx] = img[-dy:, -dx:]
+            img_out[:h + dy, :w + dx] = img[-dy:, -dx:]
 
-        center = center + torch.FloatTensor([[dx, dy]]).expand_as(center) # [n, 2]
-        mask_x = (center[:, 0] >= 0) & (center[:, 0] < w) # [n,]
-        mask_y = (center[:, 1] >= 0) & (center[:, 1] < h) # [n,]
-        mask = (mask_x & mask_y).view(-1, 1) # [n, 1], mask for the boxes within the image after shift.
+        center = center + torch.FloatTensor([[dx, dy]]).expand_as(center)  # [n, 2]
+        mask_x = (center[:, 0] >= 0) & (center[:, 0] < w)  # [n,]
+        mask_y = (center[:, 1] >= 0) & (center[:, 1] < h)  # [n,]
+        mask = (mask_x & mask_y).view(-1, 1)  # [n, 1], mask for the boxes within the image after shift.
 
-        boxes_out = boxes[mask.expand_as(boxes)].view(-1, 4) # [m, 4]
+        boxes_out = boxes[mask.expand_as(boxes)].view(-1, 4)  # [m, 4]
         if len(boxes_out) == 0:
             return img, boxes, labels
-        shift = torch.FloatTensor([[dx, dy, dx, dy]]).expand_as(boxes_out) # [m, 4]
+        shift = torch.FloatTensor([[dx, dy, dx, dy]]).expand_as(boxes_out)  # [m, 4]
 
         boxes_out = boxes_out + shift
         boxes_out[:, 0] = boxes_out[:, 0].clamp_(min=0, max=w)
@@ -275,15 +301,15 @@ class VOCDataset(Dataset):
         x = random.uniform(0, w_orig - w)
         h, w, x, y = int(h), int(w), int(x), int(y)
 
-        center = center - torch.FloatTensor([[x, y]]).expand_as(center) # [n, 2]
-        mask_x = (center[:, 0] >= 0) & (center[:, 0] < w) # [n,]
-        mask_y = (center[:, 1] >= 0) & (center[:, 1] < h) # [n,]
-        mask = (mask_x & mask_y).view(-1, 1) # [n, 1], mask for the boxes within the image after crop.
+        center = center - torch.FloatTensor([[x, y]]).expand_as(center)  # [n, 2]
+        mask_x = (center[:, 0] >= 0) & (center[:, 0] < w)  # [n,]
+        mask_y = (center[:, 1] >= 0) & (center[:, 1] < h)  # [n,]
+        mask = (mask_x & mask_y).view(-1, 1)  # [n, 1], mask for the boxes within the image after crop.
 
-        boxes_out = boxes[mask.expand_as(boxes)].view(-1, 4) # [m, 4]
+        boxes_out = boxes[mask.expand_as(boxes)].view(-1, 4)  # [m, 4]
         if len(boxes_out) == 0:
             return img, boxes, labels
-        shift = torch.FloatTensor([[x, y, x, y]]).expand_as(boxes_out) # [m, 4]
+        shift = torch.FloatTensor([[x, y, x, y]]).expand_as(boxes_out)  # [m, 4]
 
         boxes_out = boxes_out - shift
         boxes_out[:, 0] = boxes_out[:, 0].clamp_(min=0, max=w)
@@ -292,7 +318,7 @@ class VOCDataset(Dataset):
         boxes_out[:, 3] = boxes_out[:, 3].clamp_(min=0, max=h)
 
         labels_out = labels[mask.view(-1)]
-        img_out = img[y:y+h, x:x+w, :]
+        img_out = img[y:y + h, x:x + w, :]
 
         return img_out, boxes_out, labels_out
 
@@ -300,16 +326,20 @@ class VOCDataset(Dataset):
 def test():
     from torch.utils.data import DataLoader
 
-    image_dir = 'data/train/'
-    label_txt = ['data/voc2007.txt', 'data/voc2012.txt']
+    image_dir = 'C:\woo_project\AI_Study\object_detection\sample/train/'
+    label_txt = 'C:\woo_project\AI_Study\object_detection\sample/voc2007.txt'
 
-    dataset = VOCDataset(True, image_dir, label_txt)
+    dataset = VOCDataset(False, image_dir, label_txt)
     data_loader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=0)
 
     data_iter = iter(data_loader)
+
     for i in range(100):
+        if i == len(data_iter):
+            break
         img, target = next(data_iter)
         print(img.size(), target.size())
+
 
 if __name__ == '__main__':
     test()

@@ -28,7 +28,9 @@ class DarkNet(nn.Module):
 
     def _make_conv_bn_layers(self):
         conv = nn.Sequential(
-            nn.Conv2d(3, 64, 7, stride=2, padding=3),
+            nn.Conv2d(1, 64, 7, stride=2, padding=3),
+
+            # nn.Conv2d(3, 64, 7, stride=2, padding=3),
             nn.BatchNorm2d(64),
             nn.LeakyReLU(0.1, inplace=True),
             nn.MaxPool2d(2),
@@ -156,7 +158,7 @@ class DarkNet(nn.Module):
         fc = nn.Sequential(
             nn.AvgPool2d(7),
             Squeeze(),
-            nn.Linear(1024, 1000)
+            nn.Linear(1024, 3)
         )
         return fc
 

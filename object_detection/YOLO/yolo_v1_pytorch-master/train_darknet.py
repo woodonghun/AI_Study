@@ -6,6 +6,7 @@ import shutil
 import time
 import warnings
 import sys
+from collections import OrderedDict
 from datetime import datetime
 
 import torch
@@ -23,6 +24,7 @@ import torchvision.datasets as datasets
 from darknet import DarkNet
 
 from torch.utils.tensorboard import SummaryWriter
+import grad_cam
 
 # model_names = sorted(name for name in models.__dict__
 #    if name.islower() and not name.startswith("__")
@@ -44,7 +46,7 @@ parser.add_argument('--epochs', default=300, type=int, metavar='N',
                     help='number of total epochs to run')
 parser.add_argument('--start-epoch', default=0, type=int, metavar='N',
                     help='manual epoch number (useful on restarts)')
-parser.add_argument('-b', '--batch-size', default=32, type=int,
+parser.add_argument('-b', '--batch-size', default=16, type=int,
                     metavar='N',
                     help='mini-batch size (default: 256), this is the total '
                          'batch size of all GPUs on the current node when '
@@ -58,7 +60,7 @@ parser.add_argument('--wd', '--weight-decay', default=1e-4, type=float,
                     dest='weight_decay')
 parser.add_argument('-p', '--print-freq', default=10, type=int,
                     metavar='N', help='print frequency (default: 10)')
-parser.add_argument('--resume', default='./results/darknet/May23_14-37-37/checkpoint.pth.tar', type=str, metavar='PATH',
+parser.add_argument('--resume', default='', type=str, metavar='PATH',
                     help='path to latest checkpoint (default: none)')
 parser.add_argument('-e', '--evaluate', dest='evaluate', action='store_true',
                     help='evaluate model on validation set')
@@ -215,16 +217,18 @@ def main_worker(gpu, ngpus_per_node, writer, log_dir, args):
     cudnn.benchmark = True
 
     # Data loading code
-    traindir = os.path.join(r'C:\Users\3DONS\Downloads\imagenet-mini', 'train')
-    valdir = os.path.join(r'C:\Users\3DONS\Downloads\imagenet-mini', 'val')
-    normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                     std=[0.229, 0.224, 0.225])
+    traindir = os.path.join(r'C:\Users\3DONS\Desktop\missingtooth', 'train')
+    valdir = os.path.join(r'C:\Users\3DONS\Desktop\missingtooth', 'val')
+    normalize = transforms.Normalize(mean=[0.485,],
+                                     std=[0.229,])
 
     train_dataset = datasets.ImageFolder(
         traindir,
         transforms.Compose([
-            transforms.RandomResizedCrop(224),
-            transforms.RandomHorizontalFlip(),
+            transforms.Resize((224,224)),
+            transforms.Grayscale(num_output_channels=1),
+            transforms.RandomHorizontalFlip(p=0.5),
+            transforms.RandomVerticalFlip(p=0.5),
             transforms.ToTensor(),
             normalize,
         ]))
@@ -240,8 +244,8 @@ def main_worker(gpu, ngpus_per_node, writer, log_dir, args):
 
     val_loader = torch.utils.data.DataLoader(
         datasets.ImageFolder(valdir, transforms.Compose([
-            transforms.Resize(256),
-            transforms.CenterCrop(224),
+            transforms.Grayscale(num_output_channels=1),
+            transforms.Resize((256,256)),
             transforms.ToTensor(),
             normalize,
         ])),
@@ -302,7 +306,7 @@ def train(train_loader, model, criterion, optimizer, epoch, writer, args):
         loss = criterion(output, target)
 
         # measure accuracy and record loss
-        acc1, acc5 = accuracy(output, target, topk=(1, 5))
+        acc1, acc5 = accuracy(output, target, topk=(1, 3))
         losses.update(loss.item(), input.size(0))
         top1.update(acc1[0], input.size(0))
         top5.update(acc5[0], input.size(0))
@@ -355,7 +359,7 @@ def validate(val_loader, model, criterion, epoch, writer, args):
             loss = criterion(output, target)
 
             # measure accuracy and record loss
-            acc1, acc5 = accuracy(output, target, topk=(1, 5))
+            acc1, acc5 = accuracy(output, target, topk=(1, 3))
             losses.update(loss.item(), input.size(0))
             top1.update(acc1[0], input.size(0))
             top5.update(acc5[0], input.size(0))
@@ -442,3 +446,34 @@ def accuracy(output, target, topk=(1,)):
 
 if __name__ == '__main__':
     main()
+    # cam = grad_cam
+    # model = DarkNet(bn=True)
+    #
+    # checkpoint = torch.load(r'C:\woo_project\AI_Study\object_detection\YOLO\yolo_v1_pytorch-master\results\darknet\Jun08_08-40-36\checkpoint.pth.tar')
+    #
+    # new_state_dict = OrderedDict()
+    # for n, v in checkpoint['state_dict'].items():
+    #     name = n.replace("module.", "")  # .module이 중간에 포함된 형태라면 (".module","")로 치환
+    #     new_state_dict[name] = v
+    #
+    # model.load_state_dict(new_state_dict)
+    #
+    # valdir = os.path.join(r'C:\Users\3DONS\Desktop\missingtooth', 'val')
+    # normalize = transforms.Normalize(mean=[0.485, ],
+    #                                  std=[0.229, ])
+    #
+    # val_dataset = datasets.ImageFolder(
+    #     valdir,
+    #     transforms.Compose([
+    #         transforms.Resize((224, 224)),
+    #         transforms.Grayscale(num_output_channels=1),
+    #         transforms.ToTensor(),
+    #         normalize,
+    #     ]))
+    #
+    # conv2d_layers = []
+    # for name, module in model.named_modules():
+    #     if isinstance(module, nn.Conv2d):
+    #         conv2d_layers.append(name)
+    #
+    # cam.insert_input_module_layer(model=DarkNet(bn=True),epoch=0,module_layer=conv2d_layers,dataset=val_dataset)

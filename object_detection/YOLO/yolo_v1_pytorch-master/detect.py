@@ -144,7 +144,7 @@ class YOLODetector:
         conf = pred_tensor[:, :, 4].unsqueeze(2)  # [S, S, 1]
         for b in range(1, B):
             conf = torch.cat((conf, pred_tensor[:, :, 5 * b + 4].unsqueeze(2)), 2)
-        conf_mask = conf > self.conf_thresh  # [S, S, B]
+        conf_mask = conf > self.conf_thresh  # [S, S, B]    object 가 있는지 없는지 True False 출력 근데 사용안함 왜 존재하는지 모름.
 
         # TBM, further optimization may be possible by replacing the following for-loops with tensor operations.
         for i in range(S):  # for x-dimension.
@@ -291,7 +291,7 @@ if __name__ == '__main__':
     gpu_id = 0
 
     # Load model.
-    yolo = YOLODetector(model_path, gpu_id=gpu_id, conf_thresh=-1.0, prob_thresh=-1.0, nms_thresh=0.3)
+    yolo = YOLODetector(model_path, gpu_id=gpu_id, conf_thresh=-1.0, prob_thresh=0.1, nms_thresh=0.1)
 
     # Load image.
     image_path = 'data/test_samples'
@@ -301,7 +301,6 @@ if __name__ == '__main__':
 
         # Detect objects.
         boxes, class_names, probs = yolo.detect(image)
-
         # Visualize.
         image_boxes = visualize_boxes(image, boxes, class_names, probs)
 

@@ -166,15 +166,15 @@ if __name__ == '__main__':
             class_name = voc_class_names[class_label]
 
             targets[(filename, class_name)].append([x1, y1, x2, y2])
-    print(targets)
+    # print(targets)
     print('Predicting...')
 
     # Load YOLO model.
-    yolo = YOLODetector(model_path, gpu_id=gpu_id, conf_thresh=0.1, prob_thresh=0.1, nms_thresh=0.5)
+    yolo = YOLODetector(model_path, gpu_id=gpu_id, conf_thresh=0.1, prob_thresh=0.1, nms_thresh=0.1)
 
     # Detect objects with the model.
     for filename in tqdm(image_fnames):
-        print(filename)
+        # print(filename)
         image_path = os.path.join(image_dir, filename)
         image = cv2.imread(image_path)
 
@@ -184,7 +184,7 @@ if __name__ == '__main__':
             x1, y1 = int(x1y1[0]), int(x1y1[1])
             x2, y2 = int(x2y2[0]), int(x2y2[1])
             preds[class_name].append([filename, prob, x1, y1, x2, y2])
-        print(preds)
+        # print(preds)
     print('Evaluate the detection result...')
 
     evaluate(preds, targets, class_names=voc_class_names)

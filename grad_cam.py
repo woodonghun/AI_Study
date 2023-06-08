@@ -1,10 +1,11 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torchsummary
+from torchsummary import summary
 import torchvision.transforms as transforms
 from PIL import Image
 from torch.utils.data import DataLoader  # 데이터를 모델에 사용할 수 있도록 정리해 주는 라이브러리
+import torchvision.datasets as datasets
 
 import matplotlib.pyplot as plt
 import os
@@ -13,7 +14,30 @@ from glob import glob
 import numpy as np
 from torchvision.models import resnet18
 
-data_save_path = r''
+"""
+    Gard Cam 출력하는 코드
+    data_save_path = 코드에서 직접 수정
+    
+    최종 
+    insert_input_module_layer(model, 0, ['layer_name'], dataset, image)
+    dataset = None 일경우 image 한장에 대한 주소를 넣으면 됨. #### 수정필요
+    기본적으로 image = None
+    
+    conv2d를 사용한 layer 의 이름을 모를시 사용
+     
+    conv2d_layers = []
+    for name, module in model.named_modules():
+         if isinstance(module, nn.Conv2d):
+             conv2d_layers.append(name)
+    
+    코드 내부의 custom dataset 의 경우 파일 이름까지 출력하기 위해서 추가한 것이나 
+    현재 코드 내부에서 이름을 출력하는 부분은 주석처리하여 custom dataset 으로 사용할필요없음
+    
+    RuntimeError: Input type (torch.cuda.FloatTensor) and weight type (torch.FloatTensor) should be the same
+    오류 발생시 forward 부분 device 를 알맞게 변경
+"""
+
+data_save_path = r'./'
 
 
 class GradCam(nn.Module):
@@ -44,7 +68,9 @@ class GradCam(nn.Module):
                 layer.register_backward_hook(self.backward_hook)
 
     def forward(self, input, target_index):
-        outs = self.model(input.to(self.device))
+        # outs = self.model(input.to(self.device))
+        outs = self.model(input.to('cpu'))
+
         outs = outs.squeeze()  # [1, num_classes]  --> [num_classes]
 
         # 가장 큰 값을 가지는 것을 target index 로 사용
@@ -100,17 +126,16 @@ def make_plt_cam(cam, image, epoch):
     # plt.show()  # plt.save 랑 같이 사용 불가능 / show 사용시 모든 os.mkdir 제거하고 하면 편함 ( 안해도 됨 )
 
 
-def insert_input_module_layer(model,  epoch, module_layer: list, dataset=None,image=None,):
+def insert_input_module_layer(model, epoch, module_layer: list, dataset=None, image=None, ):
     GradCam.cam = []
     # data, label, label_list = train_dataset[0]['image'], train_dataset[0]['label_name'], train_dataset[0]['label_list']  # 이미지 한 장과 라벨 불러오기
     # print(train_dataset[0]['filename'])
     if dataset:
-        data, label = dataset[0][0], dataset[1]  # 이미지 한 장과 라벨 불러오기
-        print(data)
+        data, label = dataset[0][0], dataset[1]  # 이미지 한 장과 라벨 불러오기, 이미지 index 는 좀더 확인해야함
         data.unsqueeze_(0)  # 4차원 3차원 [피쳐수 ,너비, 높이] -> [1,피쳐수 ,너비, 높이]  ???
         original_img = (data[0][0].cpu().numpy())
 
-    if image:
+    if image:   # 이미지 한장만 넣었을 때 사용
         original_img = image
 
     for i, k in enumerate(module_layer):
@@ -153,27 +178,31 @@ class CustomDataset(torch.utils.data.Dataset):
 
 if __name__ == '__main__':
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    data_path_train = r'D:\AI_study\cnn\2catdog\cat_dog\test_set'
+    data_path_train = r'C:\Users\3DONS\Desktop\sample\sample_data'
     transform_train = transforms.Compose([
         transforms.Resize((224, 224)),
         transforms.ToTensor(),
         transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
     ])  # 데이터 정규화
 
-    train_dataset = CustomDataset(data_path_train, transform_train)
+    train_dataset = datasets.ImageFolder(data_path_train, transform_train)
     trainloader = DataLoader(train_dataset, batch_size=1, shuffle=True, drop_last=True)
 
     model = resnet18(pretrained=True)
 
     model.eval()
 
-    print(model)
+    # summary(model, (3, 224, 224))
 
-    data, label, label_list = train_dataset[0]['image'], train_dataset[0]['label_name'], train_dataset[0]['label_list']  # 이미지 한 장과 라벨 불러오기
+    # data, label, label_list = train_dataset[0]['image'], train_dataset[0]['label_name'], train_dataset[0]['label_list']  # 이미지 한 장과 라벨 불러오기
 
-    data.unsqueeze_(0)  # 4차원 3차원 [피쳐수 ,너비, 높이] -> [1,피쳐수 ,너비, 높이]  ???
-    original_img = (data[0][0].cpu().numpy())
+    # data.unsqueeze_(0)  # 4차원 3차원 [피쳐수 ,너비, 높이] -> [1,피쳐수 ,너비, 높이]  ???
+    # original_img = (data[0][0].cpu().numpy())
 
     # original_img = np.transpose(original_img, (1, 2, 0))
+    conv2d_layers = []
+    for name, module in model.named_modules():
+        if isinstance(module, nn.Conv2d):
+            conv2d_layers.append(name)
 
-    insert_input_module_layer(model, 0, ['layer1.0.conv1', 'layer1.0.conv2', 'layer2.0.conv1', 'layer1.0.conv2'], train_dataset, image=None)
+    insert_input_module_layer(model, 0, conv2d_layers, train_dataset, image=None)
