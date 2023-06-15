@@ -12,7 +12,10 @@ from engine import train_one_epoch, evaluate
 from dataset.group_by_aspect_ratio import GroupedBatchSampler, create_aspect_ratio_groups
 import argparse
 import torchvision
+from datetime import datetime
+from torch.utils.tensorboard import SummaryWriter
 
+import grad_cam
 import cv2
 import random
 
@@ -20,12 +23,12 @@ import random
 def get_args():
     parser = argparse.ArgumentParser(description='Pytorch Faster-rcnn Training')
 
-    parser.add_argument('--data_path', default=r'C:\woo_project\AI_Study\object_detection\data_\coco', help='dataset path')
+    parser.add_argument('--data_path', default=r'C:\woo_project\AI_Study\object_detection\data_\coco', help='dataset path') # train val test 상위 경로
     parser.add_argument('--model', default='fasterrcnn_resnet50_fpn', help='model')
-    parser.add_argument('--dataset', default='coco', help='dataset')
+    parser.add_argument('--dataset', default='coco', help='dataset')  # coco format 강의에서 사용한 포멧
     parser.add_argument('--device', default='cuda', help='device')
     parser.add_argument('--b', '--batch_size', default=1, type=int)
-    parser.add_argument('--epochs', default=100, type=int, metavar='N',
+    parser.add_argument('--epochs', default=500, type=int, metavar='N',
                         help='number of total epochs to run')
     parser.add_argument('-j', '--workers', default=8, type=int, metavar='N',
                         help='number of data loading workers (default: 16)')
@@ -35,13 +38,13 @@ def get_args():
     parser.add_argument('--wd', '--weight-decay', default=1e-4, type=float,
                         metavar='W', help='weight decay (default: 1e-4)',
                         dest='weight_decay')
-    parser.add_argument('--print-freq', default=1, type=int, help='print frequency')
+    parser.add_argument('--print-freq', default=200, type=int, help='print frequency')
     parser.add_argument('--lr-step-size', default=8, type=int, help='decrease lr every step-size epochs')
-    parser.add_argument('--lr-steps', default=[8, 11], nargs='+', type=int, help='decrease lr every step-size epochs')
-    parser.add_argument('--lr-gamma', default=0.1, type=float, help='decrease lr by a factor of lr-gamma')
-    parser.add_argument('--resume', default='', help='resume from checkpoint')
-    parser.add_argument('--test_only', default=False, type=bool, help='resume from checkpoint')
-    parser.add_argument('--output-dir', default='./result', help='path where to save')
+    parser.add_argument('--lr-steps', default=[300, 450], nargs='+', type=int, help='decrease lr every step-size epochs')   # learning rate 언제 줄일지
+    parser.add_argument('--lr-gamma', default=0.1, type=float, help='decrease lr by a factor of lr-gamma')  # 얼마나 줄일지
+    parser.add_argument('--resume', default=r'D:\Object Detection\instance_tooth_save_result\model_augmentation.pth', help='resume from checkpoint')     # pth 파일 입력
+    parser.add_argument('--test_only', default=False, type=bool, help='resume from checkpoint')     # evaluate 만 실행 할 경우 입력
+    parser.add_argument('--output-dir', default=r'D:\Object Detection\instance_tooth_save_result', help='path where to save')
     parser.add_argument('--aspect-ratio-group-factor', default=0, type=int)
     parser.add_argument(
         "--pretrained",
@@ -49,11 +52,11 @@ def get_args():
         help="Use pre-trained models from the modelzoo",
         action="store_true",
     )
-    parser.add_argument('--distributed', default=True, help='if distribute or not')
+    parser.add_argument('--distributed', default=True, help='if distribute or not')  # (분산 학습) 기법중하나 정확한 방식 모름
     parser.add_argument('--parallel', default=False, help='if distribute or not')
     # distributed training parameters
     parser.add_argument('--world-size', default=1, type=int,
-                        help='number of distributed processes')
+                        help='number of distributed processes')  # gpu가 1개 인 상황으로 알고있음
     parser.add_argument('--dist-url', default='env://', help='url used to set up distributed training')
 
     args = parser.parse_args()
@@ -63,8 +66,8 @@ def get_args():
 
 def get_dataset(name, image_set, transform):
     paths = {
-        "coco": (r'C:\woo_project\AI_Study\object_detection\data_\coco', get_coco, 91),
-        "coco_kp": ('/datasets01/COCO/022719/', get_coco_kp, 2)
+        "coco": (r'C:\Object_Detection\data\remake\instatnce-tooth_augmentation2', get_coco, 33),  # 제일 뒤에는 class 개수
+        "coco_kp": ('/datasets01/COCO/022719/', get_coco_kp, 2)  # custom data 를 생성하면 제작
     }
     p, ds_fn, num_classes = paths[name]
 
@@ -75,12 +78,16 @@ def get_dataset(name, image_set, transform):
 def get_transform(train):
     transforms = []
     transforms.append(T.ToTensor())
-    if train:
-        transforms.append(T.RandomHorizontalFlip(0.5))
+    # if train:
+    #     transforms.append(T.RandomHorizontalFlip(0.5))
     return T.Compose(transforms)
 
 
 def main():
+    log_dir = datetime.now().strftime('%b%d_%H-%M-%S')
+    log_dir = os.path.join('tensorboard/log', log_dir)
+    writer = SummaryWriter(log_dir=log_dir)
+
     args = get_args()
     if args.output_dir:
         utils.mkdir(args.output_dir)
@@ -89,14 +96,18 @@ def main():
     # Data loading
     print("Loading data")
     dataset, num_classes = get_dataset(args.dataset, "train", get_transform(train=True))
-    dataset_test, _ = get_dataset(args.dataset, "val", get_transform(train=False))
+    dataset_val, _ = get_dataset(args.dataset, "val", get_transform(train=False))
+    dataset_test, _ = get_dataset(args.dataset, "test", get_transform(train=False))     # test dataset 직접 제작
 
     print("Creating data loaders")
     if args.distributed:
         train_sampler = torch.utils.data.distributed.DistributedSampler(dataset)
+        val_sampler = torch.utils.data.distributed.DistributedSampler(dataset_val)
         test_sampler = torch.utils.data.distributed.DistributedSampler(dataset_test)
+
     else:
         train_sampler = torch.utils.data.RandomSampler(dataset)
+        val_sampler = torch.utils.data.SequentialSampler(dataset_val)
         test_sampler = torch.utils.data.SequentialSampler(dataset_test)
 
     if args.aspect_ratio_group_factor >= 0:
@@ -108,6 +119,11 @@ def main():
 
     data_loader = torch.utils.data.DataLoader(
         dataset, batch_sampler=train_batch_sampler, num_workers=args.workers,
+        collate_fn=utils.collate_fn)
+
+    data_loader_val = torch.utils.data.DataLoader(
+        dataset_val, batch_size=args.b,
+        sampler=val_sampler, num_workers=args.workers,
         collate_fn=utils.collate_fn)
 
     data_loader_test = torch.utils.data.DataLoader(
@@ -123,7 +139,7 @@ def main():
 
     device = torch.device(args.device)
     model.to(device)
-    print(model)
+    # print(model)
 
     # Distribute
     model_without_ddp = model
@@ -154,15 +170,26 @@ def main():
         lr_scheduler.load_state_dict(checkpoint['lr_scheduler'])
 
     if args.test_only:
-        evaluate(model, data_loader_test, device=device)
-        return
+        model.eval()
+        evaluate(model, data_loader_test, device=device,epoch=0, writer=writer)
+        conv2d_layers = []
+        # for name, module in model.named_modules():
+        #     if isinstance(module, nn.Conv2d):
+        #         conv2d_layers.append(name)
+        #
+        # grad_cam.insert_input_module_layer(model, 0, conv2d_layers, dataset_test, image=None)
+        # return
 
     # Training
     print('Start training')
     start_time = time.time()
+    start_loss = 100
+
+
     for epoch in range(args.epochs):
-        train_one_epoch(model, optimizer, data_loader, device, epoch, args.print_freq)
-        lr_scheduler.step()
+        train_one_epoch(model, optimizer, data_loader, device, epoch, args.print_freq, writer)
+
+        # train 기준으로 현재 파일이 저장되고 있음, valid 기존으로 되도록 코드 변경 필요함,,.
         if args.output_dir:
             utils.save_on_master({
                 'model': model_without_ddp.state_dict(),
@@ -172,7 +199,7 @@ def main():
                 os.path.join(args.output_dir, f'model_{epoch}.pth'))
 
         # evaluate after every epoch
-        evaluate(model, data_loader_test, device=device)
+        evaluate(model, data_loader_val, device=device, epoch=epoch, writer=writer)
 
     total_time = time.time() - start_time
     total_time_str = str(datetime.timedelta(seconds=int(total_time)))

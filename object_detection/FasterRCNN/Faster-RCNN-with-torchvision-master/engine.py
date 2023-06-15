@@ -8,9 +8,11 @@ import torchvision.models.detection.mask_rcnn
 from dataset.coco_utils import get_coco_api_from_dataset
 from dataset.coco_eval import CocoEvaluator
 import utils
+from torch.utils.tensorboard import SummaryWriter
+import os
+from datetime import datetime
 
-
-def train_one_epoch(model, optimizer, data_loader, device, epoch, print_freq):
+def train_one_epoch(model, optimizer, data_loader, device, epoch, print_freq, writer):
     model.train()
     metric_logger = utils.MetricLogger(delimiter="  ")
     metric_logger.add_meter('lr', utils.SmoothedValue(window_size=1, fmt='{value:.6f}'))
@@ -24,8 +26,9 @@ def train_one_epoch(model, optimizer, data_loader, device, epoch, print_freq):
 
         lr_scheduler = utils.warmup_lr_scheduler(optimizer, warmup_iters, warmup_factor)
 
+    iteration = epoch*len(data_loader)
     # i = 0
-    for images, targets in metric_logger.log_every(data_loader, print_freq, header):
+    for count, (images, targets) in enumerate(metric_logger.log_every(data_loader, print_freq, header)):
         images = list(image.to(device) for image in images)
         targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
 
@@ -37,6 +40,8 @@ def train_one_epoch(model, optimizer, data_loader, device, epoch, print_freq):
         losses_reduced = sum(loss for loss in loss_dict_reduced.values())
 
         loss_value = losses_reduced.item()
+        writer.add_scalar('train/loss', loss_value,count+iteration)
+
 
         if not math.isfinite(loss_value):
             print("Loss is {}, stopping training".format(loss_value))
@@ -70,7 +75,7 @@ def _get_iou_types(model):
 
 
 @torch.no_grad()
-def evaluate(model, data_loader, device):
+def evaluate(model, data_loader, device, epoch, writer):
     n_threads = torch.get_num_threads()
     # FIXME remove this and make paste_masks_in_image run on the GPU
     torch.set_num_threads(1)
@@ -116,4 +121,8 @@ def evaluate(model, data_loader, device):
     coco_evaluator.accumulate()
     coco_evaluator.summarize([])   # list category id => map 와 해당되는 category ap 출력
     torch.set_num_threads(n_threads)
+
+    for iou_type, coco_eval in coco_evaluator.coco_eval.items():
+        writer.add_scalar("AP/IoU/0.50-0.95/all/100", coco_eval.stats[0], epoch)
+
     return coco_evaluator

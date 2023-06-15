@@ -25,7 +25,7 @@ print('CUDA device_count: {}'.format(torch.cuda.device_count()))
 image_dir = 'data/train/'
 
 # Path to label files.
-train_label = ('data/voc2007.txt', 'data/voc2012.txt')
+train_label = ('data/voc2007.txt', 'data/voc2012.txt')      # train 할 이미지가 2개의 txt로 분리되어있을 때 tuple 형식
 val_label = 'data/voc2007test.txt'
 
 # Path to checkpoint file containing pre-trained DarkNet weight.
@@ -156,8 +156,8 @@ def main():
         val_loss = 0.0
         total_batch = 0
 
-        grad_cam.data_save_path = r'C:\woo_project\AI_Study\object_detection\YOLO\weigths\darknet'
-        grad_cam.insert_input_module_layer(yolo, 0, ['features.module.0.Conv2d', 'features.module.61.Conv2d'], val_dataset, image=None)
+        # grad_cam.data_save_path = r'C:\woo_project\AI_Study\object_detection\YOLO\weigths\darknet'
+        # grad_cam.insert_input_module_layer(yolo, 0, ['features.module.0.Conv2d', 'features.module.61.Conv2d'], val_dataset, image=None)
 
         for i, (imgs, targets) in enumerate(val_loader):
             # Load data as a batch.

@@ -5,6 +5,7 @@ import torch.nn as nn
 import torchvision.models as models
 import matplotlib.pyplot as plt
 import random
+import torchvision.datasets as datasets
 
 import torchvision.transforms as transforms
 from torch.utils.data import DataLoader  # 데이터를 모델에 사용할 수 있도록 정리해 주는 라이브러리
@@ -24,7 +25,7 @@ from torch.utils.data import DataLoader  # 데이터를 모델에 사용할 수 
     input_name - dataloader 에서 들어가는 image name
     layer_name_feature_maps_number - None 일때 첫번째, 마지막 layer, 첫번째 마지막 feature map + random feature map 개수
                                    - dict 형식으로 입력하면 해당되는 feature map 출력 ex) {'features.0': [0, 1, 2, 3, 4], 'features.1': [0, 1, 2, 3]}
-                                   
+                                
     train 시작지점 에서 아래의 형식의 코드 입력
 
     for epoch in range(self.epoch_size):
@@ -35,6 +36,8 @@ from torch.utils.data import DataLoader  # 데이터를 모델에 사용할 수 
     
     #   dataloader 는 custom dataset 으로 세팅 하였으며 data['filename'] 은 custom data set 안에서 정의함,
         dataset을 정의 하지 않을경우 data['filename'] 은 임시로 넣으면됨 - data type은 확인 하지 않았으나 list 로 추정 
+        
+        또는 dataset 에서 불러오면됨 dataloader 와 dataset의 indexing 은 확인할 필요 있음
 
     for i, data in trainloader:
         inputs, values = data['image'].to(self.device), data['label'].to(self.device)   
@@ -55,7 +58,7 @@ class FeatureMapVisualizer:
         self.model = model
         self.path = path + '/' + FeatureMapVisualizer.feature_map_folder_name
         self.image_size = image_size
-        self.num_maps = num_maps
+        self.num_maps = num_maps - 1  # 피쳐맵 개수 변경
         self.feature_maps = {}
         self.use = use
         self.mk_epoch = mk_epoch
@@ -86,7 +89,8 @@ class FeatureMapVisualizer:
                     if isinstance(layer, nn.Conv2d):  # layer 와 conv2 에 해당되는 것만 가지고옴
                         save_name.append(name)  # layer 이름 저장
                 for name, layer in self.model.named_modules():
-                    if isinstance(layer, nn.Conv2d): #and name == save_name[0] or name == save_name[-1] or name == save_name[len(save_name)//2]:  # 저장한 layer 중 첫번 째 마지막 layer 만 hook
+                    if isinstance(layer,
+                                  nn.Conv2d):  # and name == save_name[0] or name == save_name[-1] or name == save_name[len(save_name)//2]:  # 저장한 layer 중 첫번 째 마지막 layer 만 hook
                         layer.register_forward_hook(self._get_feature_maps_hook(name))
 
             else:
@@ -154,27 +158,31 @@ class FeatureMapVisualizer:
 
 
 if __name__ == "__main__":
-    feature_map_save_path = r'C:\woo_project\AI_Study\sample_data'
-    epoch = 10
+    feature_map_save_path = r'C:\Users\3DONS\Desktop\sample'
+
     transform_train = transforms.Compose([
         transforms.Resize((224, 224)),
         transforms.ToTensor(),
         transforms.Normalize((0.48827466, 0.4551035, 0.41741803), (0.05540232, 0.054113153, 0.055464733))
     ])  # 데이터 정규화
-    # custom = test.CustomDataset(r'C:\woo_project\AI_Study\sample_data\sample', transform_train)
-    # dataloader = torch.utils.data.DataLoader(custom, 1, shuffle=True)
+
+    dataset = datasets.ImageFolder(r'C:\woo_project\AI_Study\object_detection\sample_train_predict_pth_data\grad_cam_feature_map', transform_train)
+    dataloader = torch.utils.data.DataLoader(dataset, 1, shuffle=True)
+    image = dataset[3][0].unsqueeze(0)  # sample
+
     model = models.vgg16(pretrained=True)
-    visualizer = FeatureMapVisualizer(model, feature_map_save_path, 2, use=True)  # model 넣기
-    image1 = torch.randn(1, 3, 224, 224)
-    # image = test_dataset[1][0].unsqueeze(0) # sample
-    print(model)
 
-    os.mkdir(feature_map_save_path + FeatureMapVisualizer.feature_map_folder_name)  # feature_map 저장할 폴더 생성
+    visualizer = FeatureMapVisualizer(model, feature_map_save_path, 1, use=True)  # model 넣기
+    # visualizer.create_feature_map_epoch_folder(0)
+    # visualizer.visualize(0, image, None, None)
 
-    for i in range(epoch):
+    for i in range(10):
         visualizer.create_feature_map_epoch_folder(i)
         for j, b in enumerate(dataloader):
-            inputs = b['image'].to('cpu')
-            labels = b['label'].to('cpu')
-            names = b['filename']
-            visualizer.visualize(i, inputs, names, None)
+            # print(b, j)
+
+            inputs = b[0][0].unsqueeze(0)
+            # inputs = b['image'].to('cpu')
+            # labels = b['label'].to('cpu')
+            # names = b['filename']
+            visualizer.visualize(i, inputs, None, None)

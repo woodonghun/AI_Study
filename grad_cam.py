@@ -15,7 +15,9 @@ import numpy as np
 from torchvision.models import resnet18
 
 """
-    Gard Cam 출력하는 코드
+    수정 필요한 부분 : cv2 와 plt 둘중 하나만 사용해야함, 현재 2개 같이 사용중
+    
+    Gard Cam 출력하는 코드, train 에서는 사용 불가 val 또는 test 에서만 사용 가능 => model.eval() 뒤에 사용 자세한 이유는 찾아야함
     data_save_path = 코드에서 직접 수정
     
     최종 
@@ -37,7 +39,7 @@ from torchvision.models import resnet18
     오류 발생시 forward 부분 device 를 알맞게 변경
 """
 
-data_save_path = r'./'
+data_save_path = r'D:\Object Detection'
 
 
 class GradCam(nn.Module):
@@ -68,8 +70,8 @@ class GradCam(nn.Module):
                 layer.register_backward_hook(self.backward_hook)
 
     def forward(self, input, target_index):
-        # outs = self.model(input.to(self.device))
-        outs = self.model(input.to('cpu'))
+        outs = self.model(input.to(self.device))  # cuda 오류 발생시 변경
+        # outs = self.model(input.to('cpu'))
 
         outs = outs.squeeze()  # [1, num_classes]  --> [num_classes]
 
@@ -92,6 +94,7 @@ class GradCam(nn.Module):
 
 
 def show_cam_on_image(mask):
+    """ grad cam heatmap 생성 """
     heatmap = cv2.applyColorMap(np.uint8(255 * mask), cv2.COLORMAP_JET)
     heatmap = np.float32(heatmap) / 255
     heatmap = heatmap[:, :, ::-1]  # matplot 과 cv2 는 rgb 채널이 달라서 변경해줘야 한다. cv2 bgr, plt rgb
@@ -131,11 +134,13 @@ def insert_input_module_layer(model, epoch, module_layer: list, dataset=None, im
     # data, label, label_list = train_dataset[0]['image'], train_dataset[0]['label_name'], train_dataset[0]['label_list']  # 이미지 한 장과 라벨 불러오기
     # print(train_dataset[0]['filename'])
     if dataset:
-        data, label = dataset[0][0], dataset[1]  # 이미지 한 장과 라벨 불러오기, 이미지 index 는 좀더 확인해야함
+        data = dataset[1][0]  # 이미지 불러오기, dataset index 는 좀더 확인해야함,
         data.unsqueeze_(0)  # 4차원 3차원 [피쳐수 ,너비, 높이] -> [1,피쳐수 ,너비, 높이]  ???
         original_img = (data[0][0].cpu().numpy())
 
+    # fixme 이미지 한장일 때 동작하지 않음
     if image:   # 이미지 한장만 넣었을 때 사용
+        data = image
         original_img = image
 
     for i, k in enumerate(module_layer):
@@ -178,7 +183,7 @@ class CustomDataset(torch.utils.data.Dataset):
 
 if __name__ == '__main__':
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    data_path_train = r'C:\Users\3DONS\Desktop\sample\sample_data'
+    data_path_train = r'C:\woo_project\AI_Study\object_detection\sample_train_predict_pth_data\grad_cam_feature_map'
     transform_train = transforms.Compose([
         transforms.Resize((224, 224)),
         transforms.ToTensor(),
@@ -192,6 +197,13 @@ if __name__ == '__main__':
 
     model.eval()
 
+    conv2d_layers = []
+    for name, module in model.named_modules():
+        if isinstance(module, nn.Conv2d):
+            conv2d_layers.append(name)
+
+    insert_input_module_layer(model, 0, conv2d_layers, train_dataset, image=None)
+
     # summary(model, (3, 224, 224))
 
     # data, label, label_list = train_dataset[0]['image'], train_dataset[0]['label_name'], train_dataset[0]['label_list']  # 이미지 한 장과 라벨 불러오기
@@ -200,9 +212,3 @@ if __name__ == '__main__':
     # original_img = (data[0][0].cpu().numpy())
 
     # original_img = np.transpose(original_img, (1, 2, 0))
-    conv2d_layers = []
-    for name, module in model.named_modules():
-        if isinstance(module, nn.Conv2d):
-            conv2d_layers.append(name)
-
-    insert_input_module_layer(model, 0, conv2d_layers, train_dataset, image=None)

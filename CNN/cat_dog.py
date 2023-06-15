@@ -1,18 +1,15 @@
 import os
-import test2
 
 import torchsummary
 from PIL import Image
 from glob import glob
-import numpy as np
-import math
 import time
 import torchvision.transforms as transforms
 # from class_activation_mapping import cam
 
 # ANN
 import torch
-from torchvision import models
+from torchvision import models, datasets
 from tqdm import tqdm
 from torch import nn, optim  # torch 내의 세부적인 기능을 불러온다. (신경망 기술, 손실함수, 최적화 방법 등)
 from torch.utils.data import DataLoader  # 데이터를 모델에 사용할 수 있도록 정리해 주는 라이브러리
@@ -22,23 +19,23 @@ from torch.utils.tensorboard import SummaryWriter
 from feature_map_show import FeatureMapVisualizer
 import resnet as res
 import grad_cam
-
+import grad_cam
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
-learning_rate = 0.0001
-batch_size = 32
-epoch_size = 50
+learning_rate = 0.00001
+batch_size = 4
+epoch_size = 200
 weight_decay = 5e-7
-project_name = 'cat_dog'
+project_name = 'missingtooth'
 
 # data_path_train = r'C:\woo_project\AI_Study\sample_data\sample'
-data_path_train = r'D:\AI_study\cnn\2catdog\cat_dog\test_set'
+data_path_train = r'C:\Users\3DONS\Desktop\missingtooth\train'
 
 # data_path_train = r'D:\AI_study\cnn\2catdog\cat_dog\training_set'
-data_path_test = r'D:\AI_study\cnn\2catdog\cat_dog\test_set'
+data_path_test = r'C:\Users\3DONS\Desktop\missingtooth\val'
 # data_path_test = r'D:\AI_study\cnn\2catdog\cat_dog\111'
 
-model_save_path = r'D:\AI_study\cnn\2catdog\model'
+model_save_path = r'C:\Users\3DONS\Desktop\missingtooth'
 
 feature_map = False
 feature_map_layer_name = {}  # {'conv1' : [0,20,40,60,63], 'conv4' : [0,20,40,60,255],'conv8':[0,20,40,60,511]}  # feature map 을 저장할 layer, map index dict {'conv1': [1, 2, 3, 4, 5], 'layer1.2.con2:[1,2,3,4,5]}
@@ -46,7 +43,7 @@ feature_map_save_epoch = 1  # feature map 을 저장할 epoch의 배수   ex) 2 
 feature_map_save_path = r'C:\woo_project\AI_Study\sample_data'  # 피쳐맵 이미지 폴더를 생성할 경로, 피쳐맵 폴더 이름은 feature_map 으로 고정
 
 pretrained_model = 0  # 0 일 때는 사전 학습 없음, 1일때 사전 학습 있음
-model_name = 'pretrained_vgg11.pt'
+model_name = 'missing.pt'
 
 tensorboard_file_name = f"{time.strftime('%H%M%S')}_epoch={epoch_size}_lr={learning_rate}_batch_size={batch_size}"
 writer = SummaryWriter(log_dir=f'{project_name}/{tensorboard_file_name}', filename_suffix=tensorboard_file_name,
@@ -66,7 +63,7 @@ class CustomDataset(torch.utils.data.Dataset):
 
         for idx, cls in enumerate(self.classes):
             cls_dir = os.path.join(self.root_dir, cls)
-            for img in glob(os.path.join(cls_dir, '*.jpg')):
+            for img in glob(os.path.join(cls_dir, '*.png')):
                 self.data.append(img)
                 self.labels.append(idx)
 
@@ -91,6 +88,8 @@ print(f'{device} is available.')
 
 transform_train = transforms.Compose([
     transforms.Resize((224, 224)),
+    transforms.RandomHorizontalFlip(p=0.5),
+    transforms.RandomVerticalFlip(p=0.5),
     transforms.ToTensor(),
     transforms.Normalize((0.48827466, 0.4551035, 0.41741803), (0.05540232, 0.054113153, 0.055464733))
 ])  # 데이터 정규화
@@ -101,7 +100,9 @@ transform_test = transforms.Compose([
 ])  # 데이터 정규화
 
 train_dataset = CustomDataset(data_path_train, transform_train)
-test_dataset = CustomDataset(data_path_test, transform_test)
+# test_dataset = CustomDataset(data_path_test, transform_test)
+test_dataset = datasets.ImageFolder(data_path_test, transform_test)
+
 
 train_size = int(0.8 * len(train_dataset))
 vaild_size = len(train_dataset) - train_size
@@ -186,9 +187,8 @@ class Trainer:
                 trainloader_tqdm.set_description(f'train-epoch : ({epoch + 1}/{self.epoch_size}),'
                                                  f' loss : {train_loss / (i + 1):.4f},'
                                                  f' acc : {100 * train_acc / ((i + 1) * self.trainloader.batch_size):.4f}')
-                if i == 1:
-                    test2.insert_input_module_layer(self.model, train_dataset, epoch, ['conv1.0','conv2_x.0.residual_function.0', 'conv3_x.0.residual_function.0', 'conv4_x.0.residual_function.0', 'conv5_x.1.residual_function.6'])
-                    visualizer.visualize(epoch, inputs, data['filename'], feature_map_layer_name)  # feature_map - epoch 폴더 안에 생성
+                # if i == 1:
+                #     visualizer.visualize(epoch, inputs, data['filename'], feature_map_layer_name)  # feature_map - epoch 폴더 안에 생성
 
             self.model.eval()  # 평가를 할 때에는 .eval() 반드시 사용해야 한다.
             with torch.no_grad():
@@ -254,7 +254,7 @@ class Predict:
         self.device = torch.device('cpu')
         self.model = model
         self.checkpoint = torch.load(fr'{model_save_path}\{model_name}', map_location=self.device)
-        self.model.load_state_dict(self.checkpoint['model'])
+        self.model.load_state_dict(self.checkpoint)
         self.model.eval()
         self.testloader = testloader
         self.test_dataset = test_dataset
@@ -262,7 +262,10 @@ class Predict:
     def evaluate(self):
         with torch.no_grad():
             for i, data in tqdm(enumerate(self.testloader, 0), total=len(self.testloader), ncols=100, leave=True):
+
                 inputs, values = data['image'], data['label']
+
+
                 test_output = self.model(inputs)
                 _, outputs = torch.max(test_output, 1)
                 self.acc += (outputs == values).sum()
@@ -274,14 +277,23 @@ if __name__ == "__main__":
     # model = models.vgg11(pretrained=True).to(device)
 
     model = res.resnet50().to(device)
+
     # model = vgg.VGGNet11().to(device)
     print(model)
     # torchsummary.summary(model, (3, 224, 224))
     # # train
-    train_vgg = Trainer(model, trainloader, validloader, learning_rate, weight_decay, epoch_size, model_save_path, model_name)
-    train_vgg.train()
+    # train_vgg = Trainer(model, trainloader, validloader, learning_rate, weight_decay, epoch_size, model_save_path, model_name)
+    # train_vgg.train()
 
-    # predict
+    model.eval()
+    conv2d_layers = []
+    for name, module in model.named_modules():
+        if isinstance(module, nn.Conv2d):
+            conv2d_layers.append(name)
+    print(conv2d_layers)
+    grad_cam.insert_input_module_layer(model, 0, conv2d_layers, dataset=test_dataset, image=None)
+
+    # # predict
     # predict_model = Predict(model, model_save_path, model_name, testloader, test_dataset)
     # predict_model.evaluate()
 

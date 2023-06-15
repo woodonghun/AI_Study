@@ -217,11 +217,12 @@ class CocoDetection(torchvision.datasets.CocoDetection):
         if self._transforms is not None:
             img, target = self._transforms(img, target)
 
+        # 추가로 넣은 코드
         remake_target = self.tensor_remake(target)
         if remake_target['boxes'] is None:
             print(remake_target)
 
-        return img, remake_target
+        return img, target
 
     def tensor_remake(self, target_dict):
         """
@@ -252,6 +253,8 @@ def get_coco(root, image_set, transforms, mode='instances'):
     PATHS = {
         "train": ("train2017", os.path.join("annotations", anno_file_template.format(mode, "train"))),
         "val": ("val2017", os.path.join("annotations", anno_file_template.format(mode, "val"))),
+        "test": ("test2017", os.path.join("annotations", anno_file_template.format(mode, "test"))),
+
         # "train": ("val2017", os.path.join("annotations", anno_file_template.format(mode, "val")))
     }
 
