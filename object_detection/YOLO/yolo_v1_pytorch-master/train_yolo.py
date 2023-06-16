@@ -75,7 +75,7 @@ def main():
     yolo = YOLOv1(darknet.features)
     yolo.conv_layers = torch.nn.DataParallel(yolo.conv_layers)
     yolo.cuda()
-    print(yolo)
+
     # Load pre-trained darknet.
 
     src_state_dict = torch.load(checkpoint_path)['state_dict']

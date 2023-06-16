@@ -13,7 +13,7 @@ from yolo_v1 import YOLOv1
 class YOLODetector:
     def __init__(self,
                  model_path, class_name_list=None, mean_rgb=[122.67891434, 116.66876762, 104.00698793],
-                 conf_thresh=0.1, prob_thresh=0.1, nms_thresh=0.5,
+                 conf_thresh=0.1, prob_thresh=0.1, nms_thresh=0.5,  # conf_thresh 사용안함
                  gpu_id=0):
 
         os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
@@ -291,7 +291,7 @@ if __name__ == '__main__':
     gpu_id = 0
 
     # Load model.
-    yolo = YOLODetector(model_path, gpu_id=gpu_id, conf_thresh=-1.0, prob_thresh=0.1, nms_thresh=0.1)
+    yolo = YOLODetector(model_path, gpu_id=gpu_id, conf_thresh=-1.0, prob_thresh=0.1, nms_thresh=0.1) # conf_thresh 사용안함
 
     # Load image.
     image_path = 'data/test_samples'

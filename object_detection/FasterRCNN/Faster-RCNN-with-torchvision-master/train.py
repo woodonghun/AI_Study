@@ -41,7 +41,7 @@ def get_args():
     parser.add_argument('--print-freq', default=200, type=int, help='print frequency')
     parser.add_argument('--lr-step-size', default=8, type=int, help='decrease lr every step-size epochs')
     parser.add_argument('--lr-steps', default=[300, 450], nargs='+', type=int, help='decrease lr every step-size epochs')   # learning rate 언제 줄일지
-    parser.add_argument('--lr-gamma', default=0.1, type=float, help='decrease lr by a factor of lr-gamma')  # 얼마나 줄일지
+    parser.add_argument('--lr-gamma', default=0.1, type=float, help='decrease lr by a factor of lr-gamma')  # 얼마의 비율로 learning rate 줄일지
     parser.add_argument('--resume', default=r'D:\Object Detection\instance_tooth_save_result\model_augmentation.pth', help='resume from checkpoint')     # pth 파일 입력
     parser.add_argument('--test_only', default=False, type=bool, help='resume from checkpoint')     # evaluate 만 실행 할 경우 입력
     parser.add_argument('--output-dir', default=r'D:\Object Detection\instance_tooth_save_result', help='path where to save')
@@ -84,6 +84,7 @@ def get_transform(train):
 
 
 def main():
+    # tensorboard 제작
     log_dir = datetime.now().strftime('%b%d_%H-%M-%S')
     log_dir = os.path.join('tensorboard/log', log_dir)
     writer = SummaryWriter(log_dir=log_dir)
@@ -189,7 +190,7 @@ def main():
     for epoch in range(args.epochs):
         train_one_epoch(model, optimizer, data_loader, device, epoch, args.print_freq, writer)
 
-        # train 기준으로 현재 파일이 저장되고 있음, valid 기존으로 되도록 코드 변경 필요함,,.
+        # fixme train 기준으로 현재 파일이 저장되고 있음, valid 기존으로 되도록 코드 변경 필요함,,.
         if args.output_dir:
             utils.save_on_master({
                 'model': model_without_ddp.state_dict(),

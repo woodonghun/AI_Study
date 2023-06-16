@@ -12,6 +12,9 @@ from torch.utils.tensorboard import SummaryWriter
 import os
 from datetime import datetime
 
+"""
+    train 과 evalutate 코드
+"""
 def train_one_epoch(model, optimizer, data_loader, device, epoch, print_freq, writer):
     model.train()
     metric_logger = utils.MetricLogger(delimiter="  ")
@@ -43,7 +46,7 @@ def train_one_epoch(model, optimizer, data_loader, device, epoch, print_freq, wr
         writer.add_scalar('train/loss', loss_value,count+iteration)
 
 
-        if not math.isfinite(loss_value):
+        if not math.isfinite(loss_value):   # 무한일 경우 정지
             print("Loss is {}, stopping training".format(loss_value))
             sys.exit(1)
 
@@ -122,6 +125,7 @@ def evaluate(model, data_loader, device, epoch, writer):
     coco_evaluator.summarize([])   # list category id => map 와 해당되는 category ap 출력
     torch.set_num_threads(n_threads)
 
+    # tensorobard 에 저장
     for iou_type, coco_eval in coco_evaluator.coco_eval.items():
         writer.add_scalar("AP/IoU/0.50-0.95/all/100", coco_eval.stats[0], epoch)
 

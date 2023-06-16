@@ -8,7 +8,7 @@ from pycocotools.cocoeval import COCOeval
 import feature_map_show
 
 
-# from apex import amp
+# from apex import amp  # amp 사용시 가상환경 오류로 인하여 사용하지 않음
 
 
 def train(model, train_loader, epoch, writer, criterion, optimizer, scheduler, is_amp):
@@ -29,6 +29,7 @@ def train(model, train_loader, epoch, writer, criterion, optimizer, scheduler, i
 
         progress_bar.set_description("Epoch: {}. Loss: {:.5f}".format(epoch + 1, loss.item()))
 
+        # tensorboard
         writer.add_scalar("Train/Loss", loss.item(), epoch * num_iter_per_epoch + i)
 
         # if is_amp:
@@ -77,4 +78,5 @@ def evaluate(model, test_loader, epoch, writer, encoder, nms_threshold):
     coco_eval.accumulate()
     coco_eval.summarize()
 
+    # tensorboard
     writer.add_scalar("Test/mAP", coco_eval.stats[0], epoch)

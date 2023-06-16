@@ -26,6 +26,9 @@ from darknet import DarkNet
 from torch.utils.tensorboard import SummaryWriter
 import grad_cam
 
+"""
+    darknet 을 pretrained 할 코드 => CNN
+"""
 # model_names = sorted(name for name in models.__dict__
 #    if name.islower() and not name.startswith("__")
 #    and callable(models.__dict__[name]))

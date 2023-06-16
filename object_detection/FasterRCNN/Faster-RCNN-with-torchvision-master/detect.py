@@ -6,21 +6,16 @@ import argparse
 import cv2
 import sys
 import coco_names
+import random
+import make_result
 
 sys.path.append('./')
-import random
-import test
-import tqdm
-
-"""
-    predict 결과에서 txt 또는 json 파일로 저장한 뒤 기존 json 파일과 iou 를 계산할 필요가 있음.
-"""
 
 
 def get_args():
     parser = argparse.ArgumentParser(description='Pytorch Faster-rcnn Detection')
 
-    parser.add_argument('--model_path', type=str, default=r'D:\Object Detection\instance_tooth_save_result/model_1.pth', help='model path')
+    parser.add_argument('--model_path', type=str, default=r'D:\Object Detection\instance_tooth_save_result/model_24.pth', help='model path')
     parser.add_argument('--image_path', type=str,
                         default=r'C:\Object_Detection\data\remake\instatnce-tooth\test2017', help='image path')  # 이미지 폴더 경로
     parser.add_argument('--model', default='fasterrcnn_resnet50_fpn', help='model')
@@ -32,7 +27,7 @@ def get_args():
     return args
 
 
-def random_color():
+def random_color():     # 색상 변경
     b = random.randint(0, 255)
     g = random.randint(0, 255)
     r = random.randint(0, 255)
@@ -42,9 +37,12 @@ def random_color():
 
 def main():
     args = get_args()
+
+    # coco format 에 맞는 이름 설정
     if args.dataset == 'coco':
         num_classes = 33
         names = coco_names.names
+
     # Model creating
     model = torchvision.models.detection.__dict__[args.model](num_classes=num_classes, pretrained=False)
     model = model.cpu()  # 회사 gpu 로는 동작하지 않아서 cpu 사용
@@ -55,7 +53,7 @@ def main():
 
     list_image = os.listdir(args.image_path)
 
-    to_json = {}
+    to_json = {}    # df 제작용 dict 생성
 
     for j in list_image:
         input = []
@@ -66,15 +64,19 @@ def main():
         input.append(img_tensor)
         out = model(input)
 
+        # predict 정보
         boxes = out[0]['boxes']
         labels = out[0]['labels']
         scores = out[0]['scores']
+
         to_json[j] = {}
 
         for idx in range(boxes.shape[0]):
             if scores[idx] >= args.score:
                 x1, y1, x2, y2 = int(boxes[idx][0]), int(boxes[idx][1]), int(boxes[idx][2]), int(boxes[idx][3])
                 name = names.get(str(labels[idx].item()))
+
+                # 2개 이상의 object 를 detect 했을시 predict 결과에 2개를 넣기 위한 코드, score 을 넣는 이유는 나중에 score 가 더 높은 값을 선택하기 위해서서
                 try:
                     to_json[j][str(labels[idx].item())].append([x1, y1, x2, y2, float(scores[idx])])
                 except:
@@ -90,8 +92,9 @@ def main():
         # cv2.waitKey()
         # cv2.destroyAllWindows()
 
+        # 정보만 가져 오면 생성할 필요 없음
         cv2.imwrite(fr'C:\Object_Detection\data\remake\instatnce-tooth\sample_result/{j}', src_img)
-    test.predict_to_json(to_json)
+    make_result.predict_to_json(to_json) # to json ------ {name : { 1 : [[0,0,0,0,0]], 2: [[0,0,0,0,0]] ... }, name2 : { 1 : [[0,0,0,0,0]], 2: [[0,0,0,0,0]] ... }}  형식
 
 
 if __name__ == "__main__":

@@ -4,7 +4,9 @@ import torch.nn.functional as F
 
 from util_layers import Squeeze
 
-
+"""
+    yolo 의 backbone이 되는 darknet network
+"""
 class DarkNet(nn.Module):
     def __init__(self, conv_only=False, bn=True, init_weight=True):
         super(DarkNet, self).__init__()

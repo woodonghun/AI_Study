@@ -1,5 +1,6 @@
 """
 @author: Viet Nguyen <nhviet1009@gmail.com>
+ssd train code
 """
 import os
 import shutil
@@ -73,7 +74,7 @@ def main(opt):
         dboxes = generate_dboxes(model="ssd")
         model = SSD(backbone=ResNet(), num_classes=len(coco_classes))
 
-    # else:
+    # else: # ssdlite 사용안함
     #     dboxes = generate_dboxes(model="ssdlite")
     #     model = SSDLite(backbone=MobileNetV2(), num_classes=len(coco_classes))
 

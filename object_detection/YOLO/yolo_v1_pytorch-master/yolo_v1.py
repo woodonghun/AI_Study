@@ -5,7 +5,9 @@ import torch.nn.functional as F
 from darknet import DarkNet
 from util_layers import Flatten
 
-
+"""
+    yolo model 은 darknet network 를 기반으로 생성됨 - backbone darknet
+"""
 class YOLOv1(nn.Module):
     def __init__(self, features, num_bboxes=2, num_classes=20, bn=True):
         super(YOLOv1, self).__init__()
